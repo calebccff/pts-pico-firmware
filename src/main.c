@@ -12,12 +12,17 @@
 #define UART_TX_PIN 4
 #define UART_RX_PIN 5
 
+#define USB_IF_CONTROL 0
+#define USB_IF_UART 1
+
 void
 handle_control_rx()
 {
 	uint8_t buf[64];
-	int readlen = tud_cdc_n_read(0, buf, sizeof(buf));
-
+	int readlen = tud_cdc_n_read(USB_IF_CONTROL, buf, sizeof(buf));
+	if (readlen < 1) {
+		return;
+	}
 	int cmd = buf[0];
 	gpio_put(LED_PIN, 1);
 	sleep_ms(50);
@@ -50,8 +55,8 @@ handle_control_rx()
 			gpio_put(BOOTLOADER_KEY_PIN, 0);
 			break;
 		default:
-			tud_cdc_n_write_str(0, "Unknown command\n");
-			tud_cdc_n_write_flush(0);
+			tud_cdc_n_write_str(USB_IF_CONTROL, "Unknown command\n");
+			tud_cdc_n_write_flush(USB_IF_CONTROL);
 			break;
 	}
 }
@@ -60,7 +65,7 @@ void
 handle_passthrough_usb_rx()
 {
 	uint8_t buf[64];
-	int readlen = tud_cdc_n_read(0, buf, sizeof(buf));
+	int readlen = tud_cdc_n_read(USB_IF_UART, buf, sizeof(buf));
 	uart_write_blocking(uart1, buf, readlen);
 }
 
@@ -73,8 +78,8 @@ handle_uart_rx()
 		buf[uart_pos] = uart_getc(uart1);
 		uart_pos++;
 	}
-	tud_cdc_n_write(2, buf, uart_pos);
-	tud_cdc_n_write_flush(2);
+	tud_cdc_n_write(USB_IF_UART, buf, uart_pos);
+	tud_cdc_n_write_flush(USB_IF_UART);
 }
 
 int
@@ -101,11 +106,11 @@ main()
 	gpio_set_dir(BOOTLOADER_KEY_PIN, GPIO_IN);
 
 	// Configure the hardware serial port for the passthrough
+	uart_init(uart1, 115200);
 	gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
 	gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
-	uart_init(uart1, 115200);
-	uart_set_hw_flow(uart1, false, false);
-	uart_set_format(uart1, 8, 1, UART_PARITY_NONE);
+	//uart_set_hw_flow(uart1, false, false);
+	//uart_set_format(uart1, 8, 1, UART_PARITY_NONE);
 
 	// Bring up USB
 	tusb_init();
@@ -119,10 +124,10 @@ main()
 		tud_task(); // tinyusb device task
 
 		// Check the control serial port
-		if (tud_cdc_n_available(0)) {
+		if (tud_cdc_n_available(USB_IF_CONTROL)) {
 			handle_control_rx();
 		}
-		if (tud_cdc_n_available(2)) {
+		if (tud_cdc_n_available(USB_IF_UART)) {
 			handle_passthrough_usb_rx();
 		}
 		if (uart_is_readable(uart1)) {
