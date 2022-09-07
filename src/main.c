@@ -15,6 +15,9 @@
 #define USB_IF_CONTROL 0
 #define USB_IF_UART 1
 
+cdc_line_coding_t usb_mode;
+cdc_line_coding_t uart_mode;
+
 /**
  * Read a single byte from the control ttyACM device and toggle the requested
  * GPIO pins
@@ -94,6 +97,32 @@ handle_uart_rx()
 	tud_cdc_n_write_flush(USB_IF_UART);
 }
 
+/**
+ * Handle baudrate changes for the passthrough ttyACM port
+ *
+ * The ttyACM device defaults to 9600 baud since the baudrate is never
+ * read from the USB device, the host OS only writes it. Both Linux and Windows
+ * default to 9600 8N1 as mode for the serial port.
+ *
+ * If the mode is changed by the host also update the baudrate of the
+ * hardware serial port and save that state.
+ */
+void
+handle_passthrough_usb_mode()
+{
+	// Get the latest mode set by the computer
+	tud_cdc_n_get_line_coding(USB_IF_UART, &usb_mode);
+
+	// Update baudrate
+	if (usb_mode.bit_rate != uart_mode.bit_rate) {
+		uart_set_baudrate(uart1, usb_mode.bit_rate);
+		uart_mode.bit_rate = usb_mode.bit_rate;
+	}
+
+	// TODO: Handle the whole 8n1 thing, not immediately required since practically
+	// everything uses the 8n1 mode
+}
+
 int
 main()
 {
@@ -118,7 +147,7 @@ main()
 	gpio_set_dir(BOOTLOADER_KEY_PIN, GPIO_IN);
 
 	// Configure the hardware serial port for the passthrough
-	uart_init(uart1, 115200);
+	uart_init(uart1, 9600);
 	gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
 	gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
 	//uart_set_hw_flow(uart1, false, false);
@@ -126,6 +155,11 @@ main()
 
 	// Bring up USB
 	tusb_init();
+
+	// Get the initial mode for the passthrough uart and set it to both structs
+	tud_cdc_n_get_line_coding(USB_IF_UART, &usb_mode);
+	tud_cdc_n_get_line_coding(USB_IF_UART, &uart_mode);
+
 
 	// Execute commands received from the USB serial
 	// This allows setting the state for 3 pins by sending a char
@@ -139,6 +173,9 @@ main()
 		if (tud_cdc_n_available(USB_IF_CONTROL)) {
 			handle_control_rx();
 		}
+
+		// Update the ttyACM uart mode for the passthrough
+		handle_passthrough_usb_mode();
 
 		// Check the passthrough serial port
 		if (tud_cdc_n_available(USB_IF_UART)) {
