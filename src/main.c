@@ -15,6 +15,10 @@
 #define USB_IF_CONTROL 0
 #define USB_IF_UART 1
 
+/**
+ * Read a single byte from the control ttyACM device and toggle the requested
+ * GPIO pins
+ */
 void
 handle_control_rx()
 {
@@ -61,6 +65,10 @@ handle_control_rx()
 	}
 }
 
+/**
+ * Read bytes from the second ttyACM device used for passthrough and send it
+ * out through the hardware uart to the phone
+ */
 void
 handle_passthrough_usb_rx()
 {
@@ -69,6 +77,10 @@ handle_passthrough_usb_rx()
 	uart_write_blocking(uart1, buf, readlen);
 }
 
+/**
+ * Read bytes from the hardware UART connected to the phone and send it
+ * to the second ttyACM device for the passthrough
+ */
 void
 handle_uart_rx()
 {
@@ -127,9 +139,13 @@ main()
 		if (tud_cdc_n_available(USB_IF_CONTROL)) {
 			handle_control_rx();
 		}
+
+		// Check the passthrough serial port
 		if (tud_cdc_n_available(USB_IF_UART)) {
 			handle_passthrough_usb_rx();
 		}
+
+		// Check the hardware uart
 		if (uart_is_readable(uart1)) {
 			handle_uart_rx();
 		}
