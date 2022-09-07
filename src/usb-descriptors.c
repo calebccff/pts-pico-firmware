@@ -80,12 +80,17 @@ tud_descriptor_string_cb(uint8_t index, uint16_t langid)
 	uint8_t len;
 
 	if (index == STR_SERIAL) {
-		pico_get_unique_board_id_string(usb_strings[STR_SERIAL], 12);
 	}
 
 	if (index == 0) {
 		buffer[1] = 0x0409; // English
 		len = 1;
+	} else if (index == STR_SERIAL) {
+		// Get the serial number from the pico flash for an unique ID
+		char serial[12] = {0};
+		pico_get_unique_board_id_string(serial, 12);
+		for (len = 0; len < 19 && serial[len]; ++len)
+			buffer[1 + len] = serial[len];
 	} else {
 		const char *str;
 
