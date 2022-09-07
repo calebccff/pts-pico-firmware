@@ -8,7 +8,7 @@ and act like an USB to UART adapter for the serial debug port. The Pico
 also has the ability to switch off the power to the phone by interrupting
 the power lines in the USB connection.
 
-![Block diagram](https://git.sr.ht/~martijnbraam/pmostest-pico/blob/master/diagram.svg)
+![Block diagram](https://brixitcdn.net/metainfo/picotest-diagram.png)
 
 The Pico firmware uses tinyusb to create two USB ACM devices that will show up
 as two USB serial devices on the host machine. The first port is used to
