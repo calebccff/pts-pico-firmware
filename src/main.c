@@ -39,9 +39,20 @@ handle_control_rx()
 	switch (cmd) {
 		case 'p':
 			gpio_put(POWER_PIN, 0);
+
+			// Make the uart passthrough high impedance when the device is supposed
+			// to be off to prevent power leaking into the test device through uart
+			gpio_set_dir(UART_RX_PIN, GPIO_IN);
+			gpio_set_dir(UART_TX_PIN, GPIO_IN);
+			gpio_set_function(UART_RX_PIN, GPIO_FUNC_SIO);
+			gpio_set_function(UART_TX_PIN, GPIO_FUNC_SIO);
 			break;
 		case 'P':
 			gpio_put(POWER_PIN, 1);
+
+			// Make sure the passthrough uart is enabled again
+			gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+			gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
 			break;
 		case 'b':
 			// Float the pin
