@@ -5,7 +5,7 @@
 #include <tusb.h>
 
 #define LED_PIN PICO_DEFAULT_LED_PIN
-#define POWER_PIN 6
+#define POWER_PIN 22
 #define POWER_KEY_PIN 2
 #define BOOTLOADER_KEY_PIN 3
 
