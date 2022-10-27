@@ -43,8 +43,22 @@ converter and passes through to `uart1` of the Pico. The port defaults to
 the 9600-8-N-1 mode expected by most operating systems. At the moment it's
 only possible to change the baudrate, not the start and stop bits.
 
+## Wiring
+
+Firmware pinout:
+
+| pin  | function                            |
+|------|-------------------------------------|
+| GP2  | Power button                        |
+| GP3  | Flashing button (volume down or up) |
+| GP4  | Uart passthrough TX                 |
+| GP5  | Uart passthrough RX                 |
+| GP22 | External power enable               |
+
 ## Funding
 
-This project was funded through the [NGI0 PET](https://nlnet.nl/PET) Fund, a fund established by [NLnet](https://nlnet.nl/) with
-financial support from the European Commission's [Next Generation Internet](https://ngi.eu/) programme, under the aegis of
+This project was funded through the [NGI0 PET](https://nlnet.nl/PET) Fund, a fund established
+by [NLnet](https://nlnet.nl/) with
+financial support from the European Commission's [Next Generation Internet](https://ngi.eu/) programme, under the aegis
+of
 DG Communications Networks, Content and Technology under grant agreement No 825310.
