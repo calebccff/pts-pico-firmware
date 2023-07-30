@@ -3,6 +3,8 @@
 #include <pico/stdlib.h>
 #include <hardware/structs/sio.h>
 #include <tusb.h>
+#include <stdio.h>
+#include <string.h>
 
 #define LED_PIN PICO_DEFAULT_LED_PIN
 #define POWER_PIN 22
@@ -25,58 +27,118 @@ cdc_line_coding_t uart_mode;
 void
 handle_control_rx()
 {
-	uint8_t buf[64];
-	int readlen = tud_cdc_n_read(USB_IF_CONTROL, buf, sizeof(buf));
+	char buf[64];
+	char *p = &buf[0];
+	int cmd;
+	memset(buf, 0, sizeof(buf));
+	int readlen = tud_cdc_n_read(USB_IF_CONTROL, buf, sizeof(buf) - 3);
 	if (readlen < 1) {
 		return;
 	}
-	int cmd = buf[0];
+
+	int x = strlen(buf);
+	if (x > sizeof(buf) - 3)
+		x = sizeof(buf)	- 3;
+	buf[x] = '\r';
+	buf[x + 1] = '\n';
+	buf[x + 2] = '\0';
+
+	tud_cdc_n_write_str(USB_IF_CONTROL, buf);
+	tud_cdc_n_write_flush(USB_IF_CONTROL);
+	buf[x] = '\0';
+
+	// First, parse the command stream and do whatever we can
+	while ((cmd = *p++) != '\0') {
+		switch (cmd) {
+			case 'p':
+				gpio_put(POWER_PIN, 0);
+
+				// Make the uart passthrough high impedance when the device is supposed
+				// to be off to prevent power leaking into the test device through uart
+				// gpio_set_dir(UART_RX_PIN, GPIO_IN);
+				// gpio_set_dir(UART_TX_PIN, GPIO_IN);
+				// gpio_set_function(UART_RX_PIN, GPIO_FUNC_SIO);
+				// gpio_set_function(UART_TX_PIN, GPIO_FUNC_SIO);
+				break;
+			case 'P':
+				gpio_put(POWER_PIN, 1);
+
+				// Make sure the passthrough uart is enabled again
+				// gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+				// gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
+				break;
+			case 'b':
+				// Float the pin
+				gpio_set_dir(POWER_KEY_PIN, GPIO_IN);
+				break;
+			case 'B':
+				// Ground the pin
+				gpio_set_dir(POWER_KEY_PIN, GPIO_OUT);
+				gpio_put(POWER_KEY_PIN, 0);
+				break;
+			case 'r':
+				// Float the pin
+				gpio_set_dir(BOOTLOADER_KEY_PIN, GPIO_IN);
+				break;
+			case 'R':
+				// Ground the pin
+				gpio_set_dir(BOOTLOADER_KEY_PIN, GPIO_OUT);
+				gpio_put(BOOTLOADER_KEY_PIN, 0);
+				break;
+			case 'u':
+			case 'U':
+				// USB VBUS, ignore for now
+				break;
+			default:
+				break;
+		}
+	}
+
+	p = &buf[0];
+	// Then print messages
+	while ((cmd = *p++) != '\0') {
+		switch (cmd) {
+			case 'p':
+				tud_cdc_n_write_str(USB_IF_CONTROL, "-> pwr off     ");
+				break;
+			case 'P':
+				tud_cdc_n_write_str(USB_IF_CONTROL, "-> pwr on      ");
+				break;
+			case 'b':
+				tud_cdc_n_write_str(USB_IF_CONTROL, "-> pwr key off ");
+				break;
+			case 'B':
+				tud_cdc_n_write_str(USB_IF_CONTROL, "-> pwr key on  ");
+				break;
+			case 'r':
+				tud_cdc_n_write_str(USB_IF_CONTROL, "-> bl key off  ");
+				break;
+			case 'R':
+				tud_cdc_n_write_str(USB_IF_CONTROL, "-> bl key on   ");
+				break;
+			case 'u':
+				tud_cdc_n_write_str(USB_IF_CONTROL, "-> vbus off    ");
+				break;
+			case 'U':
+				tud_cdc_n_write_str(USB_IF_CONTROL, "-> vbus on     ");
+				break;
+			default:
+				tud_cdc_n_write_str(USB_IF_CONTROL, "-> unknown ");
+				tud_cdc_n_write_char(USB_IF_CONTROL, cmd);
+				tud_cdc_n_write_str(USB_IF_CONTROL, "   ");
+				break;
+		}
+		tud_cdc_n_write_char(USB_IF_CONTROL, '\r');
+		tud_cdc_n_write_char(USB_IF_CONTROL, '\n');
+	}
+
+	tud_cdc_n_write_str(USB_IF_CONTROL, "=> ");
+	tud_cdc_n_write_flush(USB_IF_CONTROL);
+
 	gpio_put(LED_PIN, 1);
 	sleep_ms(50);
 	gpio_put(LED_PIN, 0);
 	sleep_ms(50);
-
-	switch (cmd) {
-		case 'p':
-			gpio_put(POWER_PIN, 0);
-
-			// Make the uart passthrough high impedance when the device is supposed
-			// to be off to prevent power leaking into the test device through uart
-			gpio_set_dir(UART_RX_PIN, GPIO_IN);
-			gpio_set_dir(UART_TX_PIN, GPIO_IN);
-			gpio_set_function(UART_RX_PIN, GPIO_FUNC_SIO);
-			gpio_set_function(UART_TX_PIN, GPIO_FUNC_SIO);
-			break;
-		case 'P':
-			gpio_put(POWER_PIN, 1);
-
-			// Make sure the passthrough uart is enabled again
-			gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
-			gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
-			break;
-		case 'b':
-			// Float the pin
-			gpio_set_dir(POWER_KEY_PIN, GPIO_IN);
-			break;
-		case 'B':
-			// Ground the pin
-			gpio_set_dir(POWER_KEY_PIN, GPIO_OUT);
-			gpio_put(POWER_KEY_PIN, 0);
-			break;
-		case 'r':
-			// Float the pin
-			gpio_set_dir(BOOTLOADER_KEY_PIN, GPIO_IN);
-			break;
-		case 'R':
-			// Ground the pin
-			gpio_set_dir(BOOTLOADER_KEY_PIN, GPIO_OUT);
-			gpio_put(BOOTLOADER_KEY_PIN, 0);
-			break;
-		default:
-			tud_cdc_n_write_str(USB_IF_CONTROL, "Unknown command\n");
-			tud_cdc_n_write_flush(USB_IF_CONTROL);
-			break;
-	}
 }
 
 /**
@@ -161,6 +223,8 @@ main()
 	uart_init(uart1, 9600);
 	gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
 	gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
+	// gpio_set_pulls(UART_TX_PIN, true, false);
+	// gpio_set_drive_strength(UART_TX_PIN, GPIO_DRIVE_STRENGTH_8MA);
 	//uart_set_hw_flow(uart1, false, false);
 	//uart_set_format(uart1, 8, 1, UART_PARITY_NONE);
 
