@@ -7,6 +7,7 @@
 #include <string.h>
 
 #define LED_PIN PICO_DEFAULT_LED_PIN
+#define VBUS_PIN 21
 #define POWER_PIN 22
 #define POWER_KEY_PIN 2
 #define BOOTLOADER_KEY_PIN 3
@@ -51,7 +52,7 @@ handle_control_rx()
 	while ((cmd = *p++) != '\0') {
 		switch (cmd) {
 			case 'p':
-				gpio_put(POWER_PIN, 0);
+				gpio_put(POWER_PIN, 1);
 
 				// Make the uart passthrough high impedance when the device is supposed
 				// to be off to prevent power leaking into the test device through uart
@@ -61,7 +62,7 @@ handle_control_rx()
 				// gpio_set_function(UART_TX_PIN, GPIO_FUNC_SIO);
 				break;
 			case 'P':
-				gpio_put(POWER_PIN, 1);
+				gpio_put(POWER_PIN, 0);
 
 				// Make sure the passthrough uart is enabled again
 				// gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
@@ -86,8 +87,10 @@ handle_control_rx()
 				gpio_put(BOOTLOADER_KEY_PIN, 0);
 				break;
 			case 'u':
+				gpio_put(VBUS_PIN, 1);
+				break;
 			case 'U':
-				// USB VBUS, ignore for now
+				gpio_put(VBUS_PIN, 0);
 				break;
 			default:
 				break;
@@ -204,16 +207,22 @@ main()
 	gpio_set_dir(LED_PIN, GPIO_OUT);
 
 	// Configure the GPIO for hardware control
+	gpio_init(VBUS_PIN);
 	gpio_init(POWER_PIN);
 	gpio_init(POWER_KEY_PIN);
 	gpio_init(BOOTLOADER_KEY_PIN);
+	gpio_set_pulls(VBUS_PIN, false, false);
 	gpio_set_pulls(POWER_PIN, false, false);
 	gpio_set_pulls(POWER_KEY_PIN, false, false);
 	gpio_set_pulls(BOOTLOADER_KEY_PIN, false, false);
 
-	// Power control pin is pushpull
+	// VBUS control pin is pushpull (active low)
+	gpio_set_dir(VBUS_PIN, GPIO_OUT);
+	gpio_put(VBUS_PIN, 1);
+
+	// Power control pin is pushpull (active low)
 	gpio_set_dir(POWER_PIN, GPIO_OUT);
-	gpio_put(POWER_PIN, 0);
+	gpio_put(POWER_PIN, 1);
 
 	// Key control pins are open drain
 	gpio_set_dir(POWER_KEY_PIN, GPIO_IN);
