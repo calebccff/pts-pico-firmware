@@ -11,6 +11,7 @@
 #define POWER_PIN 22
 #define POWER_KEY_PIN 2
 #define BOOTLOADER_KEY_PIN 3
+#define BOOTLOADER_KEY_PIN_2 6
 
 #define UART_TX_PIN 4
 #define UART_RX_PIN 5
@@ -80,11 +81,14 @@ handle_control_rx()
 			case 'r':
 				// Float the pin
 				gpio_set_dir(BOOTLOADER_KEY_PIN, GPIO_IN);
+				gpio_set_dir(BOOTLOADER_KEY_PIN_2, GPIO_IN);
 				break;
 			case 'R':
 				// Ground the pin
 				gpio_set_dir(BOOTLOADER_KEY_PIN, GPIO_OUT);
+				gpio_set_dir(BOOTLOADER_KEY_PIN_2, GPIO_OUT);
 				gpio_put(BOOTLOADER_KEY_PIN, 0);
+				gpio_put(BOOTLOADER_KEY_PIN_2, 0);
 				break;
 			case 'u':
 				gpio_put(VBUS_PIN, 1);
@@ -211,10 +215,12 @@ main()
 	gpio_init(POWER_PIN);
 	gpio_init(POWER_KEY_PIN);
 	gpio_init(BOOTLOADER_KEY_PIN);
+	gpio_init(BOOTLOADER_KEY_PIN_2);
 	gpio_set_pulls(VBUS_PIN, false, false);
 	gpio_set_pulls(POWER_PIN, false, false);
 	gpio_set_pulls(POWER_KEY_PIN, false, false);
 	gpio_set_pulls(BOOTLOADER_KEY_PIN, false, false);
+	gpio_set_pulls(BOOTLOADER_KEY_PIN_2, false, false);
 
 	// VBUS control pin is pushpull (active low)
 	gpio_set_dir(VBUS_PIN, GPIO_OUT);
